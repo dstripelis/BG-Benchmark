@@ -3,6 +3,6 @@
 ### TestClient 
 Implementation of OrientDB evaluation
 
-### Validation Phase
+### ValidationPhase
 Implementation of the Validation Phase for BG Benchmark
 
