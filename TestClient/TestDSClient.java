@@ -1,6 +1,7 @@
 package orientDB;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
@@ -20,7 +21,7 @@ import edu.usc.bg.base.DB;
 import edu.usc.bg.base.DBException;
 
 
-public class TestDSClient extends DB {
+public class TestDSClientA extends DB {
 	
 	ODatabaseDocumentTx db = null;
 	OClass users = null;
@@ -38,7 +39,7 @@ public class TestDSClient extends DB {
 			HashMap<String, ByteIterator> values, boolean insertImage) {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
-		//System.out.println("dsfsdfsdf");
+
 		ODocument newDocument = new ODocument(entitySet);
 		Integer id = Integer.parseInt(entityPK);
 		if (entitySet.equals("users")) {
@@ -177,8 +178,58 @@ public class TestDSClient extends DB {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		// TODO Auto-generated method stub
-		return null;
+		
+		// Find Total Users Count 
+		ODocument ucount = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
+		int usercount = ((Long) ucount.field("count")).intValue();		
+		
+		// Auxiliary collection for Average Confirmed Friends|Pending Friends
+		List<ODocument> Ouids = db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
+		int uid;
+		
+		// Find Average Friends per User
+		int ConfFriendsSum = 0;
+		ODocument user_friends;
+		for	(ODocument Ouid: Ouids){
+			uid = (int) Ouid.field("userid");
+			user_friends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid=" + uid)).get(0);
+			ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.field("ConfFriends")).size();			
+		}
+		double avgfriendsperuser = ConfFriendsSum/usercount;
+
+		
+		// Find Average Pending per User
+		int PendFriendsSum = 0;
+		ODocument user_pendings;
+		for	(ODocument Ouid: Ouids){
+			uid = (int) Ouid.field("userid");
+			user_pendings = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid=" + uid)).get(0);
+			PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.field("PendFriends")).size();			
+		}
+		double avgpendingperuser = PendFriendsSum/usercount;		
+
+		
+		// Find Average Resources per User
+		int ResourcesSum = 0;
+		List<ODocument> user_resources;
+		// Prepared Query
+		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
+		for	(ODocument Ouid: Ouids){
+			uid = (int) Ouid.field("userid");
+			user_resources =  db.command(resources_query).execute(uid);			
+			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
+		}
+		double  resourcesperuser = ResourcesSum/usercount;
+
+		
+		// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
+		HashMap <String,String> hash = new HashMap<String,String>();
+		hash.put("usercount", Integer.toString(usercount));
+		hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
+		hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
+		hash.put("resourcesperuser", Double.toString(resourcesperuser));
+		
+		return hash;
 	}
 
 	@Override
@@ -212,9 +263,9 @@ public class TestDSClient extends DB {
 		this.users.createProperty("fname", OType.STRING);
 		this.users.createProperty("lname", OType.STRING);
 		this.users.createProperty("gender", OType.STRING);
-		this.users.createProperty("dob", OType.DATE);
-		this.users.createProperty("jdate", OType.DATE);
-		this.users.createProperty("ldate", OType.DATE);
+		this.users.createProperty("dob", OType.STRING);
+		this.users.createProperty("jdate", OType.STRING);
+		this.users.createProperty("ldate", OType.STRING);
 		this.users.createProperty("address", OType.STRING);
 		this.users.createProperty("email", OType.STRING);
 		this.users.createProperty("tel", OType.STRING);
