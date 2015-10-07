@@ -10,6 +10,7 @@ import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal;
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal;
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx;
 import com.orientechnologies.orient.core.id.ORID;
+import com.orientechnologies.orient.core.intent.OIntentMassiveInsert;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OType;
 import com.orientechnologies.orient.core.record.impl.ODocument;
@@ -22,14 +23,26 @@ import edu.usc.bg.base.DBException;
 
 
 public class TestDSClientA extends DB {
-	
+
 	ODatabaseDocumentTx db = null;
 	OClass users = null;
 	OClass resources = null;
 	OClass manipulations = null;
-	
+	int massiveInsertFlag = 0;
+	ODocument newDocument = null;
+
+
 	public boolean init() throws DBException {
 		this.db = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
+		try{
+			this.users = this.db.getMetadata().getSchema().getClass("users");
+			this.resources = this.db.getMetadata().getSchema().getClass("resources");
+			this.manipulations = this.db.getMetadata().getSchema().getClass("manipulations");
+		}catch(Exception e) {
+			System.out.println("Schema does not exist already..");
+		}
+		this.newDocument = new ODocument();
+		this.db.declareIntent(new OIntentMassiveInsert());
 		return true;
 	}
 
@@ -38,27 +51,28 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> values, boolean insertImage) {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
-		ODocument newDocument = new ODocument(entitySet);
+		this.newDocument.reset();
+		this.newDocument.setClassName(entitySet);
 		Integer id = Integer.parseInt(entityPK);
 		if (entitySet.equals("users")) {
-			newDocument.field("userid", id);
-			newDocument.field("ConfFriends", new ArrayList<Integer>());
-			newDocument.field("PendFriends", new ArrayList<Integer>());
+			this.newDocument.field("userid", id);
+			this.newDocument.field("ConfFriends", new ArrayList<Integer>());
+			this.newDocument.field("PendFriends", new ArrayList<Integer>());
 		}
 		else if (entitySet.equals("resources")) {
-			newDocument.field("rid", id);
+			this.newDocument.field("rid", id);
 		}
 		else if (entitySet.equals("manipulations")) {
-			newDocument.field("mid", id);
+			this.newDocument.field("mid", id);
 		}
 		for(String k: values.keySet()) {
 			if(!(k.toString().equalsIgnoreCase("pic") || k.toString().equalsIgnoreCase("tpic")))
-				newDocument.field(k, values.get(k).toString());
+				this.newDocument.field(k, values.get(k).toString());
 		}
-		this.db.save(newDocument);
+		this.newDocument.save();
 		return 0;
 	}
-	
+
 	@Override
 	public int CreateFriendship(int invitorID, int inviteeID) {
 		// TODO Auto-generated method stub
@@ -79,9 +93,10 @@ public class TestDSClientA extends DB {
 		invitee.field("PendFriends", pendFriends);
 		invitee.field("ConfFriends", confFriends);
 		this.db.save(invitee);
+		//OClass users = this.db.
 		return 0;
 	}
-	
+
 	@Override
 	public int inviteFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
@@ -172,11 +187,23 @@ public class TestDSClientA extends DB {
 		return 0;
 	}
 
+	public void createIndexes() {
+		System.out.println("creating indexes");
+		this.users.createIndex("userIndex", OClass.INDEX_TYPE.UNIQUE, "userid");
+		this.resources.createIndex("resourceIndex", OClass.INDEX_TYPE.UNIQUE, "rid");
+		this.resources.createIndex("resourceWallUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "walluserid");
+		this.resources.createIndex("resourceCreatorUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "creatorid");
+		this.manipulations.createIndex("manipulationIndex", OClass.INDEX_TYPE.UNIQUE, "mid");
+		this.manipulations.createIndex("manipulationResourceIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "rid");
+		System.out.println("done creating indexes");
+
+	}
+
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		
 		// TODO Auto-generated method stub
 		// Find Total Users Count 
+		this.db.declareIntent(null);
 		int uid;
 		int usercount = 0;
 		ArrayList<Integer> userConfFriends;
@@ -189,7 +216,7 @@ public class TestDSClientA extends DB {
 		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
 
 		for (ODocument user: db.browseClass("users")){
-			uid = (int) user.field("userid");
+			uid = (Integer) user.field("userid");
 			usercount++;
 			userConfFriends = user.field("ConfFriends");
 			ConfFriendsSum += userConfFriends.size();
@@ -218,8 +245,9 @@ public class TestDSClientA extends DB {
 		this.createSchemaForUsers();
 		this.createSchemaForResources();
 		this.createSchemaForManipulations();
+		this.createIndexes();
 		this.db.command(new OSQLSynchQuery("ALTER database DATETIMEFORMAT + 'YYYY/MM/dd HH:MM:SS' "));
-		this.db.close();
+		db.close();
 	}
 
 	@Override
@@ -235,7 +263,7 @@ public class TestDSClientA extends DB {
 		// TODO Auto-generated method stub
 		return 0;
 	}
-	
+
 	public void createSchemaForUsers() {
 		this.users = this.db.getMetadata().getSchema().createClass("users");
 		this.users.createProperty("userid", OType.INTEGER);
@@ -244,15 +272,14 @@ public class TestDSClientA extends DB {
 		this.users.createProperty("fname", OType.STRING);
 		this.users.createProperty("lname", OType.STRING);
 		this.users.createProperty("gender", OType.STRING);
-		this.users.createProperty("dob", OType.DATETIME);
-		this.users.createProperty("jdate", OType.DATETIME);
-		this.users.createProperty("ldate", OType.DATETIME);
+		this.users.createProperty("dob", OType.DATE);
+		this.users.createProperty("jdate", OType.DATE);
+		this.users.createProperty("ldate", OType.DATE);
 		this.users.createProperty("address", OType.STRING);
 		this.users.createProperty("email", OType.STRING);
 		this.users.createProperty("tel", OType.STRING);
-		this.users.createIndex("userIndex", OClass.INDEX_TYPE.UNIQUE, "userid");
 	}
-	
+
 	public void createSchemaForResources() {
 		this.resources = this.db.getMetadata().getSchema().createClass("resources");
 		this.resources.createProperty("rid", OType.INTEGER);
@@ -261,11 +288,8 @@ public class TestDSClientA extends DB {
 		this.resources.createProperty("type", OType.STRING);
 		this.resources.createProperty("body", OType.STRING);
 		this.resources.createProperty("doc", OType.STRING);
-		this.resources.createIndex("resourceIndex", OClass.INDEX_TYPE.UNIQUE, "rid");
-		this.resources.createIndex("resourceWallUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "walluserid");
-		this.resources.createIndex("resourceCreatorUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "creatorid");
 	}
-	
+
 	public void createSchemaForManipulations() {
 		this.manipulations = this.db.getMetadata().getSchema().createClass("manipulations");
 		this.manipulations.createProperty("mid", OType.INTEGER);
@@ -275,8 +299,6 @@ public class TestDSClientA extends DB {
 		this.manipulations.createProperty("timestamp", OType.DATETIME);
 		this.manipulations.createProperty("type", OType.STRING);
 		this.manipulations.createProperty("content", OType.STRING);
-		this.manipulations.createIndex("manipulationIndex", OClass.INDEX_TYPE.UNIQUE, "mid");
-		this.manipulations.createIndex("manipulationResourceIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "rid");
 	}
 
 }
