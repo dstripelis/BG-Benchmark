@@ -30,7 +30,6 @@ public class TestDSClientA extends DB {
 	
 	public boolean init() throws DBException {
 		this.db = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		//ODatabaseRecordThreadLocal.INSTANCE.set((ODatabaseDocumentInternal) this.db.getUnderlying());
 		return true;
 	}
 
@@ -39,7 +38,6 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> values, boolean insertImage) {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
-		//System.out.println("dsfsdfsdf");
 		ODocument newDocument = new ODocument(entitySet);
 		Integer id = Integer.parseInt(entityPK);
 		if (entitySet.equals("users")) {
@@ -57,7 +55,6 @@ public class TestDSClientA extends DB {
 			if(!(k.toString().equalsIgnoreCase("pic") || k.toString().equalsIgnoreCase("tpic")))
 				newDocument.field(k, values.get(k).toString());
 		}
-		//System.out.println("working");
 		this.db.save(newDocument);
 		return 0;
 	}
@@ -82,7 +79,6 @@ public class TestDSClientA extends DB {
 		invitee.field("PendFriends", pendFriends);
 		invitee.field("ConfFriends", confFriends);
 		this.db.save(invitee);
-		//OClass users = this.db.
 		return 0;
 	}
 	
@@ -178,58 +174,41 @@ public class TestDSClientA extends DB {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
+		
 		// TODO Auto-generated method stub
 		// Find Total Users Count 
-		ODocument ucount = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
-		int usercount = ((Long) ucount.field("count")).intValue();
-		
-		// Auxiliary collection for Average Confirmed Friends|Pending Friends
-		List<ODocument> Ouids = this.db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
 		int uid;
-		
-		// Find Average Friends per User
+		int usercount = 0;
+		ArrayList<Integer> userConfFriends;
 		int ConfFriendsSum = 0;
-		List<ODocument> user_friends;
-		OSQLSynchQuery<ODocument> confirmed_query = new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid= ?");
-		for	(ODocument Ouid: Ouids){
-			uid = (Integer) Ouid.field("userid");
-			user_friends = this.db.command(confirmed_query).execute(uid);
-			ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.get(0).field("ConfFriends")).size();			
-		}
-		double avgfriendsperuser = ConfFriendsSum/usercount;
-	
-		
-		// Find Average Pending per User
+		ArrayList<Integer> userPendFriends;
 		int PendFriendsSum = 0;
-		List<ODocument> user_pendings;
-		OSQLSynchQuery<ODocument> pendings_query = new OSQLSynchQuery<ODocument>("select PendFriends from users where userid= ?");
-		for	(ODocument Ouid: Ouids){
-			uid = (Integer) Ouid.field("userid");
-			user_pendings = this.db.command(pendings_query).execute(uid);
-			PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.get(0).field("PendFriends")).size();			
-		}
-		double avgpendingperuser = PendFriendsSum/usercount;				
 		
-		
-		// Find Average Resources per User		
 		int ResourcesSum = 0;
 		List<ODocument> user_resources;
 		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
-		for	(ODocument Ouid: Ouids){
-			uid = (Integer) Ouid.field("userid");
-			user_resources =  this.db.command(resources_query).execute(uid);			
-			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
+
+		for (ODocument user: db.browseClass("users")){
+			uid = (int) user.field("userid");
+			usercount++;
+			userConfFriends = user.field("ConfFriends");
+			ConfFriendsSum += userConfFriends.size();
+			userPendFriends = user.field("PendFriends");
+			PendFriendsSum = userPendFriends.size();	
+			
+			user_resources =  db.command(resources_query).execute(uid);			
+			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();
 		}
-		double  resourcesperuser = ResourcesSum/usercount;		
-	
+		double avgfriendsperuser = ConfFriendsSum/usercount;
+		double avgpendingperuser = PendFriendsSum/usercount;
+		double resourcesperuser = ResourcesSum/usercount;
 		
-		// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
 		HashMap <String,String> hash = new HashMap<String,String>();
 		hash.put("usercount", Integer.toString(usercount));
 		hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
 		hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
 		hash.put("resourcesperuser", Double.toString(resourcesperuser));
-		
+
 		return hash;
 	}
 
