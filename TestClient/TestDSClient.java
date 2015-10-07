@@ -180,68 +180,57 @@ public class TestDSClientA extends DB {
 	public HashMap<String, String> getInitialStats() {
 		// TODO Auto-generated method stub
 		// Find Total Users Count 
-				System.out.println("Getting users count");
-				ODocument ucount = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
-				int usercount = ((Long) ucount.field("count")).intValue();
-				System.out.println("Users count received");
-				System.out.println(usercount);
-				
-				// Auxiliary collection for Average Confirmed Friends|Pending Friends
-				List<ODocument> Ouids = db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
-				int uid;
-				
-				// Find Average Friends per User
-				int ConfFriendsSum = 0;
-				ODocument user_friends;
-				System.out.println("Finding average confirmed friends");
-				for	(ODocument Ouid: Ouids){
-					uid = (Integer) Ouid.field("userid");
-					user_friends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid=" + uid)).get(0);
-					ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.field("ConfFriends")).size();			
-				}
-				double avgfriendsperuser = ConfFriendsSum/usercount;
-				System.out.println("average confirmed users found...");
-				System.out.println(avgfriendsperuser);
-
-				
-				// Find Average Pending per User
-				System.out.println("Finding average pending friends");
-				int PendFriendsSum = 0;
-				ODocument user_pendings;
-				for	(ODocument Ouid: Ouids){
-					uid = (Integer) Ouid.field("userid");
-					user_pendings = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid=" + uid)).get(0);
-					PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.field("PendFriends")).size();			
-				}
-				double avgpendingperuser = PendFriendsSum/usercount;		
-				System.out.println("average pending users found...");
-				System.out.println(avgpendingperuser);
-				
-				// Find Average Resources per User
-				System.out.println("Finding average resources per user");
-				int ResourcesSum = 0;
-				List<ODocument> user_resources;
-				// Prepared Query
-				OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
-				for	(ODocument Ouid: Ouids){
-					//System.out.println("executing resources iteration for a user");
-					uid = (Integer) Ouid.field("userid");
-					user_resources =  db.command(resources_query).execute(uid);			
-					ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
-				}
-				double  resourcesperuser = ResourcesSum/usercount;
-				System.out.println("average resources per user found...");
-				System.out.println(resourcesperuser);
-
-				
-				// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
-				HashMap <String,String> hash = new HashMap<String,String>();
-				hash.put("usercount", Integer.toString(usercount));
-				hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
-				hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
-				hash.put("resourcesperuser", Double.toString(resourcesperuser));
-				
-				return hash;
+		ODocument ucount = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
+		int usercount = ((Long) ucount.field("count")).intValue();
+		
+		// Auxiliary collection for Average Confirmed Friends|Pending Friends
+		List<ODocument> Ouids = this.db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
+		int uid;
+		
+		// Find Average Friends per User
+		int ConfFriendsSum = 0;
+		List<ODocument> user_friends;
+		OSQLSynchQuery<ODocument> confirmed_query = new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid= ?");
+		for	(ODocument Ouid: Ouids){
+			uid = (Integer) Ouid.field("userid");
+			user_friends = this.db.command(confirmed_query).execute(uid);
+			ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.get(0).field("ConfFriends")).size();			
+		}
+		double avgfriendsperuser = ConfFriendsSum/usercount;
+	
+		
+		// Find Average Pending per User
+		int PendFriendsSum = 0;
+		List<ODocument> user_pendings;
+		OSQLSynchQuery<ODocument> pendings_query = new OSQLSynchQuery<ODocument>("select PendFriends from users where userid= ?");
+		for	(ODocument Ouid: Ouids){
+			uid = (Integer) Ouid.field("userid");
+			user_pendings = this.db.command(pendings_query).execute(uid);
+			PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.get(0).field("PendFriends")).size();			
+		}
+		double avgpendingperuser = PendFriendsSum/usercount;				
+		
+		
+		// Find Average Resources per User		
+		int ResourcesSum = 0;
+		List<ODocument> user_resources;
+		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
+		for	(ODocument Ouid: Ouids){
+			uid = (Integer) Ouid.field("userid");
+			user_resources =  this.db.command(resources_query).execute(uid);			
+			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
+		}
+		double  resourcesperuser = ResourcesSum/usercount;		
+	
+		
+		// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
+		HashMap <String,String> hash = new HashMap<String,String>();
+		hash.put("usercount", Integer.toString(usercount));
+		hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
+		hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
+		hash.put("resourcesperuser", Double.toString(resourcesperuser));
+		
+		return hash;
 	}
 
 	@Override
@@ -250,7 +239,8 @@ public class TestDSClientA extends DB {
 		this.createSchemaForUsers();
 		this.createSchemaForResources();
 		this.createSchemaForManipulations();
-		db.close();
+		this.db.command(new OSQLSynchQuery("ALTER database DATETIMEFORMAT + 'YYYY/MM/dd HH:MM:SS' "));
+		this.db.close();
 	}
 
 	@Override
@@ -275,9 +265,9 @@ public class TestDSClientA extends DB {
 		this.users.createProperty("fname", OType.STRING);
 		this.users.createProperty("lname", OType.STRING);
 		this.users.createProperty("gender", OType.STRING);
-		this.users.createProperty("dob", OType.DATE);
-		this.users.createProperty("jdate", OType.DATE);
-		this.users.createProperty("ldate", OType.DATE);
+		this.users.createProperty("dob", OType.DATETIME);
+		this.users.createProperty("jdate", OType.DATETIME);
+		this.users.createProperty("ldate", OType.DATETIME);
 		this.users.createProperty("address", OType.STRING);
 		this.users.createProperty("email", OType.STRING);
 		this.users.createProperty("tel", OType.STRING);
