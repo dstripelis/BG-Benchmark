@@ -39,7 +39,7 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> values, boolean insertImage) {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
-
+		//System.out.println("dsfsdfsdf");
 		ODocument newDocument = new ODocument(entitySet);
 		Integer id = Integer.parseInt(entityPK);
 		if (entitySet.equals("users")) {
@@ -178,58 +178,70 @@ public class TestDSClientA extends DB {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		
+		// TODO Auto-generated method stub
 		// Find Total Users Count 
-		ODocument ucount = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
-		int usercount = ((Long) ucount.field("count")).intValue();		
-		
-		// Auxiliary collection for Average Confirmed Friends|Pending Friends
-		List<ODocument> Ouids = db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
-		int uid;
-		
-		// Find Average Friends per User
-		int ConfFriendsSum = 0;
-		ODocument user_friends;
-		for	(ODocument Ouid: Ouids){
-			uid = (int) Ouid.field("userid");
-			user_friends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid=" + uid)).get(0);
-			ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.field("ConfFriends")).size();			
-		}
-		double avgfriendsperuser = ConfFriendsSum/usercount;
+				System.out.println("Getting users count");
+				ODocument ucount = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
+				int usercount = ((Long) ucount.field("count")).intValue();
+				System.out.println("Users count received");
+				System.out.println(usercount);
+				
+				// Auxiliary collection for Average Confirmed Friends|Pending Friends
+				List<ODocument> Ouids = db.query(new OSQLSynchQuery<ODocument>("select userid from users"));
+				int uid;
+				
+				// Find Average Friends per User
+				int ConfFriendsSum = 0;
+				ODocument user_friends;
+				System.out.println("Finding average confirmed friends");
+				for	(ODocument Ouid: Ouids){
+					uid = (Integer) Ouid.field("userid");
+					user_friends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid=" + uid)).get(0);
+					ConfFriendsSum += (int) ((ArrayList<Integer>) user_friends.field("ConfFriends")).size();			
+				}
+				double avgfriendsperuser = ConfFriendsSum/usercount;
+				System.out.println("average confirmed users found...");
+				System.out.println(avgfriendsperuser);
 
-		
-		// Find Average Pending per User
-		int PendFriendsSum = 0;
-		ODocument user_pendings;
-		for	(ODocument Ouid: Ouids){
-			uid = (int) Ouid.field("userid");
-			user_pendings = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid=" + uid)).get(0);
-			PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.field("PendFriends")).size();			
-		}
-		double avgpendingperuser = PendFriendsSum/usercount;		
+				
+				// Find Average Pending per User
+				System.out.println("Finding average pending friends");
+				int PendFriendsSum = 0;
+				ODocument user_pendings;
+				for	(ODocument Ouid: Ouids){
+					uid = (Integer) Ouid.field("userid");
+					user_pendings = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid=" + uid)).get(0);
+					PendFriendsSum += (int) ((ArrayList<Integer>) user_pendings.field("PendFriends")).size();			
+				}
+				double avgpendingperuser = PendFriendsSum/usercount;		
+				System.out.println("average pending users found...");
+				System.out.println(avgpendingperuser);
+				
+				// Find Average Resources per User
+				System.out.println("Finding average resources per user");
+				int ResourcesSum = 0;
+				List<ODocument> user_resources;
+				// Prepared Query
+				OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
+				for	(ODocument Ouid: Ouids){
+					//System.out.println("executing resources iteration for a user");
+					uid = (Integer) Ouid.field("userid");
+					user_resources =  db.command(resources_query).execute(uid);			
+					ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
+				}
+				double  resourcesperuser = ResourcesSum/usercount;
+				System.out.println("average resources per user found...");
+				System.out.println(resourcesperuser);
 
-		
-		// Find Average Resources per User
-		int ResourcesSum = 0;
-		List<ODocument> user_resources;
-		// Prepared Query
-		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
-		for	(ODocument Ouid: Ouids){
-			uid = (int) Ouid.field("userid");
-			user_resources =  db.command(resources_query).execute(uid);			
-			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();						
-		}
-		double  resourcesperuser = ResourcesSum/usercount;
-
-		
-		// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
-		HashMap <String,String> hash = new HashMap<String,String>();
-		hash.put("usercount", Integer.toString(usercount));
-		hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
-		hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
-		hash.put("resourcesperuser", Double.toString(resourcesperuser));
-		
-		return hash;
+				
+				// ("usercount", "avgfriendsperuser", "avgpendingperuser", "resourcesperuser")
+				HashMap <String,String> hash = new HashMap<String,String>();
+				hash.put("usercount", Integer.toString(usercount));
+				hash.put("avgfriendsperuser", Double.toString(avgfriendsperuser));
+				hash.put("avgpendingperuser", Double.toString(avgpendingperuser));
+				hash.put("resourcesperuser", Double.toString(resourcesperuser));
+				
+				return hash;
 	}
 
 	@Override
@@ -263,9 +275,9 @@ public class TestDSClientA extends DB {
 		this.users.createProperty("fname", OType.STRING);
 		this.users.createProperty("lname", OType.STRING);
 		this.users.createProperty("gender", OType.STRING);
-		this.users.createProperty("dob", OType.STRING);
-		this.users.createProperty("jdate", OType.STRING);
-		this.users.createProperty("ldate", OType.STRING);
+		this.users.createProperty("dob", OType.DATE);
+		this.users.createProperty("jdate", OType.DATE);
+		this.users.createProperty("ldate", OType.DATE);
 		this.users.createProperty("address", OType.STRING);
 		this.users.createProperty("email", OType.STRING);
 		this.users.createProperty("tel", OType.STRING);
@@ -275,24 +287,27 @@ public class TestDSClientA extends DB {
 	public void createSchemaForResources() {
 		this.resources = this.db.getMetadata().getSchema().createClass("resources");
 		this.resources.createProperty("rid", OType.INTEGER);
-		this.resources.createProperty("creatorid", OType.STRING);
-		this.resources.createProperty("walluserid", OType.STRING);
+		this.resources.createProperty("creatorid", OType.INTEGER);
+		this.resources.createProperty("walluserid", OType.INTEGER);
 		this.resources.createProperty("type", OType.STRING);
 		this.resources.createProperty("body", OType.STRING);
 		this.resources.createProperty("doc", OType.STRING);
 		this.resources.createIndex("resourceIndex", OClass.INDEX_TYPE.UNIQUE, "rid");
+		this.resources.createIndex("resourceWallUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "walluserid");
+		this.resources.createIndex("resourceCreatorUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "creatorid");
 	}
 	
 	public void createSchemaForManipulations() {
 		this.manipulations = this.db.getMetadata().getSchema().createClass("manipulations");
 		this.manipulations.createProperty("mid", OType.INTEGER);
 		this.manipulations.createProperty("creatorid", OType.STRING);
-		this.manipulations.createProperty("rid", OType.STRING);
-		this.manipulations.createProperty("modifierid", OType.STRING);
-		this.manipulations.createProperty("timestamp", OType.STRING);
+		this.manipulations.createProperty("rid", OType.INTEGER);
+		this.manipulations.createProperty("modifierid", OType.INTEGER);
+		this.manipulations.createProperty("timestamp", OType.DATETIME);
 		this.manipulations.createProperty("type", OType.STRING);
 		this.manipulations.createProperty("content", OType.STRING);
 		this.manipulations.createIndex("manipulationIndex", OClass.INDEX_TYPE.UNIQUE, "mid");
+		this.manipulations.createIndex("manipulationResourceIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "rid");
 	}
 
 }
