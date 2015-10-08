@@ -24,12 +24,12 @@ import edu.usc.bg.base.DBException;
 
 public class TestDSClientA extends DB {
 
-	ODatabaseDocumentTx db = null;
-	OClass users = null;
-	OClass resources = null;
-	OClass manipulations = null;
-	int massiveInsertFlag = 0;
-	ODocument newDocument = null;
+	private ODatabaseDocumentTx db = null;
+	private OClass users = null;
+	private OClass resources = null;
+	private OClass manipulations = null;
+	private int massiveInsertFlag = 0;
+	private ODocument newDocument = null;
 
 
 	public boolean init() throws DBException {
@@ -43,6 +43,7 @@ public class TestDSClientA extends DB {
 		}
 		this.newDocument = new ODocument();
 		this.db.declareIntent(new OIntentMassiveInsert());
+				
 		return true;
 	}
 
@@ -79,6 +80,7 @@ public class TestDSClientA extends DB {
 		this.db.activateOnCurrentThread();
 		ODocument invitor = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(invitorID).toString())).get(0);
 		ODocument invitee = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(inviteeID).toString())).get(0); 
+		
 		ArrayList<Integer> confFriends = invitor.field("ConfFriends");
 		ArrayList<Integer> pendFriends = invitor.field("PendFriends");
 		confFriends.add(new Integer(inviteeID));
@@ -101,7 +103,8 @@ public class TestDSClientA extends DB {
 	public int inviteFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
-		ODocument invitee = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(inviteeID).toString())).get(0); 
+		ODocument invitee = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(inviteeID).toString())).get(0); 		
+
 		ArrayList<Integer> pendFriends = invitee.field("PendFriends");
 		pendFriends.add(new Integer(inviterID));
 		invitee.field("PendFriends", pendFriends);
@@ -201,34 +204,34 @@ public class TestDSClientA extends DB {
 
 	@Override
 	public HashMap<String, String> getInitialStats() {
-		// TODO Auto-generated method stub
-		// Find Total Users Count 
+		// TODO Auto-generated method stub		
 		this.db.declareIntent(null);
-		int uid;
-		int usercount = 0;
-		ArrayList<Integer> userConfFriends;
-		int ConfFriendsSum = 0;
-		ArrayList<Integer> userPendFriends;
-		int PendFriendsSum = 0;
+								
+		// Total Users
+		ODocument ucount = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from users")).get(0);
+		int usercount = ((Long) ucount.field("count")).intValue();
 		
-		int ResourcesSum = 0;
-		List<ODocument> user_resources;
-		OSQLSynchQuery<ODocument> resources_query = new OSQLSynchQuery<ODocument>("select count(rid) from resources where creatorid = ?");
+		// Get Statistics of 1st user 
+		ODocument user = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select * from users limit 1")).get(0);
+		int uid = (int) user.field("userid");		
+								
+		// Confirmed Friends
+		ArrayList<Integer> userConfFriendsList = user.field("ConfFriends");
+		int user_total_ConfFriends = userConfFriendsList.size();
+		
+		// Pending Friends
+		ArrayList<Integer> userPendFriendsList = user.field("PendFriends");
+		int user_total_PendFriends = userPendFriendsList.size();
+		
+		// Get resources count for the specific user id
+		ODocument user_resources = (ODocument) this.db.query(new OSQLSynchQuery<ODocument> ("select count(rid) from resources where creatorid = " + new Integer (uid).toString())).get(0);
+		
+		// User Resources					
+		int user_total_Resources = ((Long) user_resources.field("count")).intValue();
 
-		for (ODocument user: db.browseClass("users")){
-			uid = (Integer) user.field("userid");
-			usercount++;
-			userConfFriends = user.field("ConfFriends");
-			ConfFriendsSum += userConfFriends.size();
-			userPendFriends = user.field("PendFriends");
-			PendFriendsSum = userPendFriends.size();	
-			
-			user_resources =  db.command(resources_query).execute(uid);			
-			ResourcesSum += ((Long) user_resources.get(0).field("count")).intValue();
-		}
-		double avgfriendsperuser = ConfFriendsSum/usercount;
-		double avgpendingperuser = PendFriendsSum/usercount;
-		double resourcesperuser = ResourcesSum/usercount;
+		double avgfriendsperuser = user_total_ConfFriends;
+		double avgpendingperuser = user_total_PendFriends;
+		double resourcesperuser = user_total_Resources;
 		
 		HashMap <String,String> hash = new HashMap<String,String>();
 		hash.put("usercount", Integer.toString(usercount));
@@ -246,8 +249,8 @@ public class TestDSClientA extends DB {
 		this.createSchemaForResources();
 		this.createSchemaForManipulations();
 		this.createIndexes();
-		this.db.command(new OSQLSynchQuery("ALTER database DATETIMEFORMAT + 'YYYY/MM/dd HH:MM:SS' "));
-		db.close();
+		this.db.command(new OSQLSynchQuery("ALTER database DATETIMEFORMAT" + " 'YYYY/MM/dd HH:MM:SS' "));
+		this.db.close();
 	}
 
 	@Override
