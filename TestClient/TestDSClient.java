@@ -95,7 +95,6 @@ public class TestDSClientA extends DB {
 		invitee.field("PendFriends", pendFriends);
 		invitee.field("ConfFriends", confFriends);
 		this.db.save(invitee);
-		//OClass users = this.db.
 		return 0;
 	}
 
