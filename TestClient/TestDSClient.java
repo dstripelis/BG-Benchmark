@@ -145,10 +145,12 @@ public class TestDSClientA extends DB {
 		// concatenate the fields for the Select Statement
 		String attributes = String.join(",",fields);			
 					
-		if (requesterID < 0 || profileOwnerID < 0) return ERROR; 
+		if (requesterID < 0 || profileOwnerID < 0) {
+			return ERROR; 
+		}
 			
 		// Get profileOwner Friends
-		ODocument profileOwnerFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ODocument profileOwnerFriends = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
 		ArrayList<Integer> ConfFriends = profileOwnerFriends.field("ConfFriends"); 
 
 		// Prepared Query
@@ -156,14 +158,13 @@ public class TestDSClientA extends DB {
 		
 		// Save Query response 
 		List<ODocument> user_data;
-		
-		// Store values for each user 
-		HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
-		
+				
 		// Iterate through Friends List
 		for (Integer friendID : ConfFriends){
+			// Store values for each user 
+			HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
 			values.put("userid", new ObjectByteIterator(String.valueOf(friendID).getBytes()));
-			user_data = db.command(user_query).execute(friendID);
+			user_data = this.db.command(user_query).execute(friendID);
 			for (String attribute : fields){				
 				values.put(attribute, new ObjectByteIterator(String.valueOf(user_data.get(0).field(attribute).toString()).getBytes()));					
 			}
@@ -178,7 +179,49 @@ public class TestDSClientA extends DB {
 			Vector<HashMap<String, ByteIterator>> results, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		return SUCCESS;
+		
+		int retVal = SUCCESS;
+		
+		// populate fields
+		Set<String> fields = new HashSet<String> (Arrays.asList("username", "pw",
+				"fname", "lname", "gender", "dob", "jdate", "ldate",
+				"address", "email", "tel")); 
+		
+		// if insertImage is True fetch the thumb-nail picture
+		if (insertImage) fields.add("tpic");
+		
+		// concatenate the fields for the Select Statement
+		String attributes = String.join(",",fields);			
+					
+		if (profileOwnerID < 0) {
+			return ERROR; 
+		}
+			
+		// Get profileOwner Friends
+		ODocument profileOwnerPendingRequests = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ArrayList<Integer> PendFriends = profileOwnerPendingRequests.field("PendFriends"); 
+
+		// Prepared Query
+		OSQLSynchQuery<ODocument> user_query = new OSQLSynchQuery<ODocument>("select " + attributes.toString() + " from users where userid = ?");
+		
+		// Save Query response 
+		List<ODocument> user_data;
+				
+		// Iterate through Pending Friends List
+		for (Integer friendID : PendFriends){
+
+			// Store values for each user 
+			HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
+			values.put("userid", new ObjectByteIterator(String.valueOf(friendID).getBytes()));
+			user_data = db.command(user_query).execute(friendID);
+			for (String attribute : fields){				
+				values.put(attribute, new ObjectByteIterator(String.valueOf(user_data.get(0).field(attribute).toString()).getBytes()));					
+			}
+			results.add(values);
+			
+		}
+		
+		return retVal;			
 	}
 
 	@Override
