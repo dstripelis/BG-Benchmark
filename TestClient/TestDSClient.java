@@ -1,6 +1,8 @@
 package orientDB;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -20,6 +22,7 @@ import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery;
 import edu.usc.bg.base.ByteIterator;
 import edu.usc.bg.base.DB;
 import edu.usc.bg.base.DBException;
+import edu.usc.bg.base.ObjectByteIterator;
 
 
 public class TestDSClientA extends DB {
@@ -31,7 +34,9 @@ public class TestDSClientA extends DB {
 	private int massiveInsertFlag = 0;
 	private ODocument newDocument = null;
 
-
+	private static final int SUCCESS = 0;
+	private static final int ERROR = 1;
+	
 	public boolean init() throws DBException {
 		this.db = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
 		try{
@@ -71,7 +76,7 @@ public class TestDSClientA extends DB {
 				this.newDocument.field(k, values.get(k).toString());
 		}
 		this.newDocument.save();
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
@@ -95,7 +100,8 @@ public class TestDSClientA extends DB {
 		invitee.field("PendFriends", pendFriends);
 		invitee.field("ConfFriends", confFriends);
 		this.db.save(invitee);
-		return 0;
+		//OClass users = this.db.
+		return SUCCESS;
 	}
 
 	@Override
@@ -108,7 +114,7 @@ public class TestDSClientA extends DB {
 		pendFriends.add(new Integer(inviterID));
 		invitee.field("PendFriends", pendFriends);
 		this.db.save(invitee);
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
@@ -116,7 +122,7 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
@@ -124,7 +130,47 @@ public class TestDSClientA extends DB {
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
 		// TODO Auto-generated method stub
-		return 0;
+		
+		int retVal = SUCCESS;
+		
+		// populate fields if empty		
+		if (fields.size() == 0){
+			fields = new HashSet<String> (Arrays.asList("username", "pw",
+					"fname", "lname", "gender", "dob", "jdate", "ldate",
+					"address", "email", "tel"));
+		}
+		// if insertImage is True fetch the thumb-nail picture
+		if (insertImage) fields.add("tpic");
+		
+		// concatenate the fields for the Select Statement
+		String attributes = String.join(",",fields);			
+					
+		if (requesterID < 0 || profileOwnerID < 0) return ERROR; 
+			
+		// Get profileOwner Friends
+		ODocument profileOwnerFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ArrayList<Integer> ConfFriends = profileOwnerFriends.field("ConfFriends"); 
+
+		// Prepared Query
+		OSQLSynchQuery<ODocument> user_query = new OSQLSynchQuery<ODocument>("select " + attributes.toString() + " from users where userid = ?");
+		
+		// Save Query response 
+		List<ODocument> user_data;
+		
+		// Store values for each user 
+		HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
+		
+		// Iterate through Friends List
+		for (Integer friendID : ConfFriends){
+			values.put("userid", new ObjectByteIterator(String.valueOf(friendID).getBytes()));
+			user_data = db.command(user_query).execute(friendID);
+			for (String attribute : fields){				
+				values.put(attribute, new ObjectByteIterator(String.valueOf(user_data.get(0).field(attribute).toString()).getBytes()));					
+			}
+			result.add(values);			
+		}
+		
+		return retVal;
 	}
 
 	@Override
@@ -132,40 +178,40 @@ public class TestDSClientA extends DB {
 			Vector<HashMap<String, ByteIterator>> results, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int acceptFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int rejectFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int viewTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int viewCommentOnResource(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
@@ -173,20 +219,20 @@ public class TestDSClientA extends DB {
 			int resourceCreatorID, int resourceID,
 			HashMap<String, ByteIterator> values) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int delCommentOnResource(int resourceCreatorID, int resourceID,
 			int manipulationID) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	public void createIndexes() {
@@ -256,14 +302,14 @@ public class TestDSClientA extends DB {
 	public int queryPendingFriendshipIds(int memberID,
 			Vector<Integer> pendingIds) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	@Override
 	public int queryConfirmedFriendshipIds(int memberID,
 			Vector<Integer> confirmedIds) {
 		// TODO Auto-generated method stub
-		return 0;
+		return SUCCESS;
 	}
 
 	public void createSchemaForUsers() {
