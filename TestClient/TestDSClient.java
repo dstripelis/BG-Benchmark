@@ -441,7 +441,7 @@ public class TestDSClientA extends DB {
 	public void createSchemaForManipulations() {
 		this.manipulations = this.db.getMetadata().getSchema().createClass("manipulations");
 		this.manipulations.createProperty("mid", OType.INTEGER);
-		this.manipulations.createProperty("creatorid", OType.STRING);
+		this.manipulations.createProperty("creatorid", OType.INTEGER);
 		this.manipulations.createProperty("rid", OType.INTEGER);
 		this.manipulations.createProperty("modifierid", OType.INTEGER);
 		this.manipulations.createProperty("timestamp", OType.DATETIME);
