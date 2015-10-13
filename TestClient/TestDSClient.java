@@ -110,7 +110,7 @@ public class TestDSClientA extends DB {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
 		ODocument invitee = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(inviteeID).toString())).get(0); 		
-
+		
 		ArrayList<Integer> pendFriends = invitee.field("PendFriends");
 		pendFriends.add(new Integer(inviterID));
 		invitee.field("PendFriends", pendFriends);
@@ -194,8 +194,7 @@ public class TestDSClientA extends DB {
 				values.put(attribute, new ObjectByteIterator(String.valueOf(user_data.get(0).field(attribute).toString()).getBytes()));					
 			}
 			result.add(values);			
-		}
-		
+		}		
 		return SUCCESS;
 	}
 
@@ -232,7 +231,6 @@ public class TestDSClientA extends DB {
 				
 		// Iterate through Pending Friends List
 		for (Integer friendID : PendFriends){
-
 			// Store values for each user 
 			HashMap<String, ByteIterator> values = new HashMap<String, ByteIterator>();
 			values.put("userid", new ObjectByteIterator(String.valueOf(friendID).getBytes()));
@@ -241,9 +239,7 @@ public class TestDSClientA extends DB {
 				values.put(attribute, new ObjectByteIterator(String.valueOf(user_data.get(0).field(attribute).toString()).getBytes()));					
 			}
 			results.add(values);
-			
-		}
-		
+		}		
 		return SUCCESS;			
 	}
 
@@ -313,17 +309,14 @@ public class TestDSClientA extends DB {
 
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
-		// TODO Auto-generated method stub
-		
+		// TODO Auto-generated method stub		
 		if (friendid1 < 0 || friendid2 < 0){
 			return ERROR;
-		}
-		
+		}		
 		// delete friendid1 from friendid2
 		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid1,friendid2);
 		// delete friendid2 from friendid1
-		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid2,friendid1);				
-		
+		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid2,friendid1);						
 		return SUCCESS;
 	}
 
@@ -398,24 +391,20 @@ public class TestDSClientA extends DB {
 		// TODO Auto-generated method stub
 		if (memberID<0) {
 			return ERROR;
-		}
-		
+		}		
 		ODocument memberPendFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid = " + new Integer(memberID).toString())).get(0);
 		ArrayList<Integer> PendFriendsList = memberPendFriends.field("PendFriends");
-		pendingIds = new Vector<Integer>(PendFriendsList); 
-		
+		pendingIds = new Vector<Integer>(PendFriendsList); 		
 		return SUCCESS;
 	}
 
 	@Override
 	public int queryConfirmedFriendshipIds(int memberID,
 			Vector<Integer> confirmedIds) {
-		// TODO Auto-generated method stub
-		
+		// TODO Auto-generated method stub		
 		if (memberID<0) {
 			return ERROR;
-		}
-		
+		}		
 		ODocument memberConfFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid = " + new Integer(memberID).toString())).get(0);
 		ArrayList<Integer> ConfFriendsList = memberConfFriends.field("ConfFriends");		
 		confirmedIds = new Vector<Integer>(ConfFriendsList); 
