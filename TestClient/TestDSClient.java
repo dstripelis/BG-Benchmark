@@ -16,6 +16,7 @@ import com.orientechnologies.orient.core.intent.OIntentMassiveInsert;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OType;
 import com.orientechnologies.orient.core.record.impl.ODocument;
+import com.orientechnologies.orient.core.sql.OCommandSQL;
 import com.orientechnologies.orient.core.sql.parser.ORid;
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery;
 
@@ -156,9 +157,7 @@ public class TestDSClientA extends DB {
 			Set<String> fields, Vector<HashMap<String, ByteIterator>> result,
 			boolean insertImage, boolean testMode) {
 		// TODO Auto-generated method stub
-		
-		int retVal = SUCCESS;
-		
+				
 		// populate fields if empty		
 		if (fields.size() == 0){
 			fields = new HashSet<String> (Arrays.asList("username", "pw",
@@ -197,7 +196,7 @@ public class TestDSClientA extends DB {
 			result.add(values);			
 		}
 		
-		return retVal;
+		return SUCCESS;
 	}
 
 	@Override
@@ -205,9 +204,7 @@ public class TestDSClientA extends DB {
 			Vector<HashMap<String, ByteIterator>> results, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		
-		int retVal = SUCCESS;
-		
+				
 		// populate fields
 		Set<String> fields = new HashSet<String> (Arrays.asList("username", "pw",
 				"fname", "lname", "gender", "dob", "jdate", "ldate",
@@ -247,18 +244,30 @@ public class TestDSClientA extends DB {
 			
 		}
 		
-		return retVal;			
+		return SUCCESS;			
 	}
 
 	@Override
 	public int acceptFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
+		if (inviterID <0 || inviteeID<0){
+			return ERROR;
+		}		
+		int res1 = CreateFriendship(inviterID,inviteeID);
+		
+		if ( res1 == ERROR ){
+			return ERROR;
+		}
 		return SUCCESS;
 	}
 
 	@Override
 	public int rejectFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
+		if (inviterID <0 || inviteeID<0){
+			return ERROR;
+		}
+		db.command(new OCommandSQL("UPDATE users REMOVE PendFriends=? WHERE userid=?")).execute(inviterID,inviteeID);
 		return SUCCESS;
 	}
 
@@ -295,12 +304,26 @@ public class TestDSClientA extends DB {
 	public int delCommentOnResource(int resourceCreatorID, int resourceID,
 			int manipulationID) {
 		// TODO Auto-generated method stub
+		if (resourceCreatorID < 0 || resourceCreatorID < 0 || resourceID < 0){
+			return ERROR;
+		}		
+		db.command(new OCommandSQL("DELETE FROM resources WHERE rid=? AND creatorid=? AND walluserid=?")).execute(resourceCreatorID, resourceID, manipulationID);		
 		return SUCCESS;
 	}
 
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		// TODO Auto-generated method stub
+		
+		if (friendid1 < 0 || friendid2 < 0){
+			return ERROR;
+		}
+		
+		// delete friendid1 from friendid2
+		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid1,friendid2);
+		// delete friendid2 from friendid1
+		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid2,friendid1);				
+		
 		return SUCCESS;
 	}
 
@@ -312,6 +335,8 @@ public class TestDSClientA extends DB {
 		this.resources.createIndex("resourceCreatorUserIDIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "creatorid");
 		this.manipulations.createIndex("manipulationIndex", OClass.INDEX_TYPE.UNIQUE, "mid");
 		this.manipulations.createIndex("manipulationResourceIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "rid");
+		this.manipulations.createIndex("manipulationCreatorIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "creatorid");
+		this.manipulations.createIndex("manipulationModifierIndex", OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX, "modifierid");
 		System.out.println("done creating indexes");
 
 	}
@@ -371,6 +396,14 @@ public class TestDSClientA extends DB {
 	public int queryPendingFriendshipIds(int memberID,
 			Vector<Integer> pendingIds) {
 		// TODO Auto-generated method stub
+		if (memberID<0) {
+			return ERROR;
+		}
+		
+		ODocument memberPendFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid = " + new Integer(memberID).toString())).get(0);
+		ArrayList<Integer> PendFriendsList = memberPendFriends.field("PendFriends");
+		pendingIds = new Vector<Integer>(PendFriendsList); 
+		
 		return SUCCESS;
 	}
 
@@ -378,6 +411,15 @@ public class TestDSClientA extends DB {
 	public int queryConfirmedFriendshipIds(int memberID,
 			Vector<Integer> confirmedIds) {
 		// TODO Auto-generated method stub
+		
+		if (memberID<0) {
+			return ERROR;
+		}
+		
+		ODocument memberConfFriends = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select ConfFriends from users where userid = " + new Integer(memberID).toString())).get(0);
+		ArrayList<Integer> ConfFriendsList = memberConfFriends.field("ConfFriends");		
+		confirmedIds = new Vector<Integer>(ConfFriendsList); 
+				
 		return SUCCESS;
 	}
 
