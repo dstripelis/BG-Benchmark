@@ -122,6 +122,32 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
+		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
+		
+		ODocument profileOwner = (ODocument) database.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ArrayList<Integer> confFriends = profileOwner.field("ConfFriends");
+		ByteIterator confFriendCount = (ByteIterator)(Object)confFriends.size();
+		ArrayList<Integer> pendFriends = profileOwner.field("PendFriends");
+		ByteIterator pendFriendCount = (ByteIterator)(Object)pendFriends.size();
+		Long resourceCount = (Long) ((ODocument)database.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
+		profileOwner.removeField("ConfFriends");
+		profileOwner.removeField("PendFriends");
+		result.put("address", (ByteIterator)profileOwner.field("address"));
+		result.put("dob", (ByteIterator)profileOwner.field("dob"));
+		result.put("email", (ByteIterator)profileOwner.field("email"));
+		result.put("fname", (ByteIterator)profileOwner.field("fname"));
+		result.put("gender", (ByteIterator)profileOwner.field("gender"));
+		result.put("jdate", (ByteIterator)profileOwner.field("jdate"));
+		result.put("ldate", (ByteIterator)profileOwner.field("ldate"));
+		result.put("lname", (ByteIterator)profileOwner.field("lname"));
+		result.put("tel", (ByteIterator)profileOwner.field("tel"));
+		result.put("userid", (ByteIterator)profileOwner.field("userid"));
+		result.put("username", (ByteIterator)profileOwner.field("username"));
+		result.put("friendcount", confFriendCount);
+		if(requesterID == profileOwnerID) {
+			result.put("pendingcount", pendFriendCount);
+		}
+		result.put("resourcecount", (ByteIterator)(Object)resourceCount);
 		return SUCCESS;
 	}
 
