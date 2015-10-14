@@ -125,16 +125,17 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
+		this.db.activateOnCurrentThread();
 		
-		ODocument profileOwner = (ODocument) database.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ODocument profileOwner = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
 		ArrayList<Integer> confFriends = profileOwner.field("ConfFriends");
 		Integer confFriendCount = confFriends.size();
 		ArrayList<Integer> pendFriends = profileOwner.field("PendFriends");
 		Integer pendFriendCount = pendFriends.size();
-		Long resourceCount = (Long) ((ODocument)database.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
+		Long resourceCount = (Long) ((ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
 		profileOwner.removeField("ConfFriends");
 		profileOwner.removeField("PendFriends");
+		
 		String tmp = profileOwner.field("address");
 		result.put("address", new ObjectByteIterator(tmp.getBytes()));
 		tmp = profileOwner.field("dob").toString();
@@ -164,9 +165,7 @@ public class TestDSClientA extends DB {
 		if (insertImage) {
 			result.put("pic", new ObjectByteIterator(profileOwner.field("pic").toString().getBytes()));
 		}
-		System.out.println("done..");
 		result.put("resourcecount", new ObjectByteIterator(Long.toString(resourceCount).getBytes()));
-		database.close();
 		return SUCCESS;
 	}
 
@@ -176,11 +175,13 @@ public class TestDSClientA extends DB {
 			boolean insertImage, boolean testMode) {
 		// TODO Auto-generated method stub
 				
+		this.db.activateOnCurrentThread();
+		
 		// populate fields if empty		
 		if (fields.size() == 0){
-			fields = new HashSet<String> (Arrays.asList("username", "pw",
+			fields = new HashSet<String> (Arrays.asList("userid", "username", "pw",
 					"fname", "lname", "gender", "dob", "jdate", "ldate",
-					"address", "email", "tel"));
+					"address", "email", "tel", "PendFriends", "ConfFriends"));
 		}
 		// if insertImage is True fetch the thumb-nail picture
 		if (insertImage) fields.add("tpic");
@@ -222,10 +223,12 @@ public class TestDSClientA extends DB {
 			boolean testMode) {
 		// TODO Auto-generated method stub
 				
+		this.db.activateOnCurrentThread();
+		
 		// populate fields
-		Set<String> fields = new HashSet<String> (Arrays.asList("username", "pw",
+		Set<String> fields = new HashSet<String> (Arrays.asList("userid", "username", "pw",
 				"fname", "lname", "gender", "dob", "jdate", "ldate",
-				"address", "email", "tel")); 
+				"address", "email", "tel", "PendFriends", "ConfFriends")); 
 		
 		// if insertImage is True fetch the thumb-nail picture
 		if (insertImage) fields.add("tpic");
@@ -238,7 +241,7 @@ public class TestDSClientA extends DB {
 		}
 			
 		// Get profileOwner Friends
-		ODocument profileOwnerPendingRequests = (ODocument) db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ODocument profileOwnerPendingRequests = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select PendFriends from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
 		ArrayList<Integer> PendFriends = profileOwnerPendingRequests.field("PendFriends"); 
 
 		// Prepared Query
@@ -264,6 +267,9 @@ public class TestDSClientA extends DB {
 	@Override
 	public int acceptFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
+		
+		this.db.activateOnCurrentThread();
+		
 		if (inviterID <0 || inviteeID<0){
 			return ERROR;
 		}		
@@ -278,10 +284,13 @@ public class TestDSClientA extends DB {
 	@Override
 	public int rejectFriend(int inviterID, int inviteeID) {
 		// TODO Auto-generated method stub
+		
+		this.db.activateOnCurrentThread();
+		
 		if (inviterID <0 || inviteeID<0){
 			return ERROR;
 		}
-		db.command(new OCommandSQL("UPDATE users REMOVE PendFriends=? WHERE userid=?")).execute(inviterID,inviteeID);
+		this.db.command(new OCommandSQL("UPDATE users REMOVE PendFriends=? WHERE userid=?")).execute(inviterID,inviteeID);
 		return SUCCESS;
 	}
 
@@ -289,8 +298,9 @@ public class TestDSClientA extends DB {
 	public int viewTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> ownerResources = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(profileOwnerID).toString() + " order by rid DESC LIMIT " + new Integer(k).toString()));
+		this.db.activateOnCurrentThread();
+		
+		List<ODocument> ownerResources = (List<ODocument>) this.db.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(profileOwnerID).toString() + " order by rid DESC LIMIT " + new Integer(k).toString()));
 		for(ODocument res : ownerResources) {
 			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
 			for(String fname : res.fieldNames()) {
@@ -305,8 +315,10 @@ public class TestDSClientA extends DB {
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> ownerResources = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(creatorID).toString() + " order by rid DESC"));
+		
+		this.db.activateOnCurrentThread();
+		
+		List<ODocument> ownerResources = (List<ODocument>) this.db.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(creatorID).toString() + " order by rid DESC"));
 		for(ODocument res : ownerResources) {
 			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
 			for(String fname : res.fieldNames()) {
@@ -321,8 +333,9 @@ public class TestDSClientA extends DB {
 	public int viewCommentOnResource(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> resourceManipulations = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from manipulations where rid = " + new Integer(resourceID).toString()));
+		this.db.activateOnCurrentThread();
+		
+		List<ODocument> resourceManipulations = (List<ODocument>) this.db.query(new OSQLSynchQuery<ODocument>("select * from manipulations where rid = " + new Integer(resourceID).toString()));
 		for(ODocument res : resourceManipulations) {
 			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
 			for(String fname : res.fieldNames()) {
@@ -338,8 +351,8 @@ public class TestDSClientA extends DB {
 			int resourceCreatorID, int resourceID,
 			HashMap<String, ByteIterator> values) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		database.activateOnCurrentThread();
+		this.db.activateOnCurrentThread();
+
 		ODocument newDoc = new ODocument();
 		newDoc.setClassName("manipulations");
 		Integer id = (Integer)(Object)(values.get("mid"));
@@ -358,23 +371,29 @@ public class TestDSClientA extends DB {
 	public int delCommentOnResource(int resourceCreatorID, int resourceID,
 			int manipulationID) {
 		// TODO Auto-generated method stub
+		
+		this.db.activateOnCurrentThread();
+		
 		if (resourceCreatorID < 0 || resourceCreatorID < 0 || resourceID < 0){
 			return ERROR;
 		}		
-		db.command(new OCommandSQL("DELETE FROM resources WHERE rid=? AND creatorid=? AND walluserid=?")).execute(resourceCreatorID, resourceID, manipulationID);		
+		this.db.command(new OCommandSQL("DELETE FROM resources WHERE rid=? AND creatorid=? AND walluserid=?")).execute(resourceCreatorID, resourceID, manipulationID);		
 		return SUCCESS;
 	}
 
 	@Override
 	public int thawFriendship(int friendid1, int friendid2) {
 		// TODO Auto-generated method stub		
+		
+		this.db.activateOnCurrentThread();
+		
 		if (friendid1 < 0 || friendid2 < 0){
 			return ERROR;
 		}		
 		// delete friendid1 from friendid2
-		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid1,friendid2);
+		this.db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid1,friendid2);
 		// delete friendid2 from friendid1
-		db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid2,friendid1);						
+		this.db.command(new OCommandSQL("UPDATE users REMOVE ConfFriends=? WHERE userid=?")).execute(friendid2,friendid1);						
 		return SUCCESS;
 	}
 
@@ -446,7 +465,8 @@ public class TestDSClientA extends DB {
 	@Override
 	public int queryPendingFriendshipIds(int memberID,
 			Vector<Integer> pendingIds) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub			
+		
 		if (memberID<0) {
 			return ERROR;
 		}		
