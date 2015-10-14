@@ -125,49 +125,48 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
+		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
 		
-		if (requesterID < 0 || profileOwnerID < 0){
-			return ERROR;
-		}
-		
-		// populate fields
-		Set<String> fields = new HashSet<String> (Arrays.asList("username", "pw",
-				"fname", "lname", "gender", "dob", "jdate", "ldate",
-				"address", "email", "tel", "ConfFriends", "PendFriends")); 
-		
-		// if insertImage is True fetch the thumb-nail picture
-		if (insertImage) fields.add("pic");		
-		
-		// concatenate the fields for the Select Statement
-		String attributes = String.join(",",fields);
-		
-		ODocument profileOwner = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select " + fields.toString() + " from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		ODocument profileOwner = (ODocument) database.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
 		ArrayList<Integer> confFriends = profileOwner.field("ConfFriends");
-		ByteIterator confFriendCount = (ByteIterator)(Object)confFriends.size();
+		Integer confFriendCount = confFriends.size();
 		ArrayList<Integer> pendFriends = profileOwner.field("PendFriends");
-		ByteIterator pendFriendCount = (ByteIterator)(Object)pendFriends.size();
-		Long resourceCount = (Long) ((ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
+		Integer pendFriendCount = pendFriends.size();
+		Long resourceCount = (Long) ((ODocument)database.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
 		profileOwner.removeField("ConfFriends");
 		profileOwner.removeField("PendFriends");
-		result.put("address", (ByteIterator)profileOwner.field("address"));
-		result.put("dob", (ByteIterator)profileOwner.field("dob"));
-		result.put("email", (ByteIterator)profileOwner.field("email"));
-		result.put("fname", (ByteIterator)profileOwner.field("fname"));
-		result.put("gender", (ByteIterator)profileOwner.field("gender"));
-		result.put("jdate", (ByteIterator)profileOwner.field("jdate"));
-		result.put("ldate", (ByteIterator)profileOwner.field("ldate"));
-		result.put("lname", (ByteIterator)profileOwner.field("lname"));
-		result.put("tel", (ByteIterator)profileOwner.field("tel"));
-		result.put("userid", (ByteIterator)profileOwner.field("userid"));
-		result.put("username", (ByteIterator)profileOwner.field("username"));		
-		if (insertImage) {
-			result.put("pic", (ByteIterator)profileOwner.field("pic"));
-		}		
-		result.put("friendcount", confFriendCount);
+		String tmp = profileOwner.field("address");
+		result.put("address", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("dob").toString();
+		result.put("dob", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("email").toString();
+		result.put("email", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("fname").toString();
+		result.put("fname", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("gender").toString();
+		result.put("gender", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("jdate").toString();
+		result.put("jdate", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("ldate").toString();
+		result.put("ldate", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("lname").toString();
+		result.put("lname", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("tel").toString();
+		result.put("tel", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("userid").toString();
+		result.put("userid", new ObjectByteIterator(tmp.getBytes()));
+		tmp = profileOwner.field("username").toString();
+		result.put("username", new ObjectByteIterator(tmp.getBytes()));
+		result.put("friendcount", new ObjectByteIterator(Integer.toString(confFriendCount).getBytes()));
 		if(requesterID == profileOwnerID) {
-			result.put("pendingcount", pendFriendCount);
+			result.put("pendingcount", new ObjectByteIterator(Integer.toString(pendFriendCount).getBytes()));
 		}
-		result.put("resourcecount", (ByteIterator)(Object)resourceCount);
+		if (insertImage) {
+			result.put("pic", new ObjectByteIterator(profileOwner.field("pic").toString().getBytes()));
+		}
+		System.out.println("done..");
+		result.put("resourcecount", new ObjectByteIterator(Long.toString(resourceCount).getBytes()));
+		database.close();
 		return SUCCESS;
 	}
 
