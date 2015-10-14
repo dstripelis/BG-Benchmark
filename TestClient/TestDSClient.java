@@ -123,14 +123,28 @@ public class TestDSClientA extends DB {
 			HashMap<String, ByteIterator> result, boolean insertImage,
 			boolean testMode) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
 		
-		ODocument profileOwner = (ODocument) database.query(new OSQLSynchQuery<ODocument>("select * from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
+		if (requesterID < 0 || profileOwnerID < 0){
+			return ERROR;
+		}
+		
+		// populate fields
+		Set<String> fields = new HashSet<String> (Arrays.asList("username", "pw",
+				"fname", "lname", "gender", "dob", "jdate", "ldate",
+				"address", "email", "tel", "ConfFriends", "PendFriends")); 
+		
+		// if insertImage is True fetch the thumb-nail picture
+		if (insertImage) fields.add("pic");		
+		
+		// concatenate the fields for the Select Statement
+		String attributes = String.join(",",fields);
+		
+		ODocument profileOwner = (ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select " + fields.toString() + " from users where userid = " + new Integer(profileOwnerID).toString())).get(0);
 		ArrayList<Integer> confFriends = profileOwner.field("ConfFriends");
 		ByteIterator confFriendCount = (ByteIterator)(Object)confFriends.size();
 		ArrayList<Integer> pendFriends = profileOwner.field("PendFriends");
 		ByteIterator pendFriendCount = (ByteIterator)(Object)pendFriends.size();
-		Long resourceCount = (Long) ((ODocument)database.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
+		Long resourceCount = (Long) ((ODocument) this.db.query(new OSQLSynchQuery<ODocument>("select count(*) from resources where walluserid = " + new Integer(profileOwnerID).toString())).get(0)).field("count");
 		profileOwner.removeField("ConfFriends");
 		profileOwner.removeField("PendFriends");
 		result.put("address", (ByteIterator)profileOwner.field("address"));
@@ -143,7 +157,10 @@ public class TestDSClientA extends DB {
 		result.put("lname", (ByteIterator)profileOwner.field("lname"));
 		result.put("tel", (ByteIterator)profileOwner.field("tel"));
 		result.put("userid", (ByteIterator)profileOwner.field("userid"));
-		result.put("username", (ByteIterator)profileOwner.field("username"));
+		result.put("username", (ByteIterator)profileOwner.field("username"));		
+		if (insertImage) {
+			result.put("pic", (ByteIterator)profileOwner.field("pic"));
+		}		
 		result.put("friendcount", confFriendCount);
 		if(requesterID == profileOwnerID) {
 			result.put("pendingcount", pendFriendCount);
@@ -271,15 +288,6 @@ public class TestDSClientA extends DB {
 	public int viewTopKResources(int requesterID, int profileOwnerID, int k,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> ownerResources = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(profileOwnerID).toString() + " order by rid DESC LIMIT " + new Integer(k).toString()));
-		for(ODocument res : ownerResources) {
-			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
-			for(String fname : res.fieldNames()) {
-				resMap.put(fname, (ByteIterator)res.field(fname));
-			}
-			result.add(resMap);
-		}
 		return SUCCESS;
 	}
 
@@ -287,15 +295,6 @@ public class TestDSClientA extends DB {
 	public int getCreatedResources(int creatorID,
 			Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> ownerResources = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(creatorID).toString() + " order by rid DESC"));
-		for(ODocument res : ownerResources) {
-			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
-			for(String fname : res.fieldNames()) {
-				resMap.put(fname, (ByteIterator)res.field(fname));
-			}
-			result.add(resMap);
-		}
 		return SUCCESS;
 	}
 
@@ -303,15 +302,6 @@ public class TestDSClientA extends DB {
 	public int viewCommentOnResource(int requesterID, int profileOwnerID,
 			int resourceID, Vector<HashMap<String, ByteIterator>> result) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		List<ODocument> resourceManipulations = (List<ODocument>) database.query(new OSQLSynchQuery<ODocument>("select * from manipulations where rid = " + new Integer(resourceID).toString()));
-		for(ODocument res : resourceManipulations) {
-			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
-			for(String fname : res.fieldNames()) {
-				resMap.put(fname, (ByteIterator)res.field(fname));
-			}
-			result.add(resMap);
-		}
 		return SUCCESS;
 	}
 
@@ -320,19 +310,6 @@ public class TestDSClientA extends DB {
 			int resourceCreatorID, int resourceID,
 			HashMap<String, ByteIterator> values) {
 		// TODO Auto-generated method stub
-		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
-		database.activateOnCurrentThread();
-		ODocument newDoc = new ODocument();
-		newDoc.setClassName("manipulations");
-		Integer id = (Integer)(Object)(values.get("mid"));
-		newDoc.field("mid", id);
-		newDoc.field("creatorid",new ObjectByteIterator(Integer.toString(resourceCreatorID).getBytes()));
-		newDoc.field("rid", new ObjectByteIterator(Integer.toString(resourceID).getBytes()));
-		newDoc.field("modifierid", new ObjectByteIterator(Integer.toString(commentCreatorID).getBytes()));
-		newDoc.field("timestamp",values.get("timestamp"));
-		newDoc.field("type", values.get("type") );
-		newDoc.field("content", values.get("content"));
-		newDoc.save();
 		return SUCCESS;
 	}
 
