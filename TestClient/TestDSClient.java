@@ -75,8 +75,10 @@ public class TestDSClientA extends DB {
 		for(String k: values.keySet()) {
 			if(!(k.toString().equalsIgnoreCase("pic") || k.toString().equalsIgnoreCase("tpic")))
 				this.newDocument.field(k, values.get(k).toString());
-			else
-				this.newDocument.field(k, values.get(k).toArray());
+			else {
+				if(insertImage)
+					this.newDocument.field(k, values.get(k).toArray());
+			}
 		}
 		this.newDocument.save();
 		return SUCCESS;
