@@ -180,7 +180,7 @@ public class TestDSClientA extends DB {
 		this.db.activateOnCurrentThread();
 		
 		// populate fields if empty		
-		if (fields.size() == 0){
+		if (fields == null){
 			fields = new HashSet<String> (Arrays.asList("userid", "username", "pw",
 					"fname", "lname", "gender", "dob", "jdate", "ldate",
 					"address", "email", "tel", "PendFriends", "ConfFriends"));
@@ -302,11 +302,12 @@ public class TestDSClientA extends DB {
 		// TODO Auto-generated method stub
 		this.db.activateOnCurrentThread();
 		
+
 		List<ODocument> ownerResources = (List<ODocument>) this.db.query(new OSQLSynchQuery<ODocument>("select * from resources where walluserid = " + new Integer(profileOwnerID).toString() + " order by rid DESC LIMIT " + new Integer(k).toString()));
 		for(ODocument res : ownerResources) {
 			HashMap<String, ByteIterator> resMap = new HashMap<String, ByteIterator>();
-			for(String fname : res.fieldNames()) {
-				resMap.put(fname, (ByteIterator)res.field(fname));
+			for(String fname : res.fieldNames()) {	
+				resMap.put(fname, new ObjectByteIterator(res.field(fname).toString().getBytes()));
 			}
 			result.add(resMap);
 		}
