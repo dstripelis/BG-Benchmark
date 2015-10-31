@@ -53,6 +53,13 @@ public class TestDSClientA extends DB {
 		return true;
 	}
 
+	public static void DeleteRecords(){
+		ODatabaseDocumentTx database = new ODatabaseDocumentTx("remote:localhost/testDB").open("admin", "admin");
+		database.command(new OCommandSQL("DELETE FROM manipulations")).execute();
+		database.command(new OCommandSQL("DELETE FROM resources")).execute();
+		database.command(new OCommandSQL("DELETE FROM users")).execute();
+	}
+	
 	@Override
 	public int insertEntity(String entitySet, String entityPK,
 			HashMap<String, ByteIterator> values, boolean insertImage) {
