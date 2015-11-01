@@ -54,44 +54,42 @@ public class TestOrientDBThroughput {
 			for (Boolean image : images){								
 				System.out.println("DELETE RECORDS");
 				orientDB.TestDSClientA.DeleteRecords();				
-				String insertImage = "insertimage=" + image.toString();
-				
-				// Populate DB
-				edu.usc.bg.BGMainClass.main(new String[]{"onetime", "-load", "-db", "orientDB.TestDSClientA",
-														"-P", populateDB, 
-														"-p", insertImage,
-														"-p","threadcount=1"});
-				
+				String insertImage = "insertimage=" + image.toString();				
 				for (Integer threadnum : threadcount){					
 					for (String workload : workloads){		
 
-					      // Call the "exiting" code here...					    
-							System.out.println("WORKLOAD EXECUTION: ");
-							System.out.println(workload);
-							String workload_file = "workloads/" + workload;						
-							String usercount =  "usercount=" + Integer.toString( (Integer.parseInt(socialitee.replace("K", "")) * 1000));
-							String threads = "threadcount=" + Integer.toString(threadnum);
-							String maxexecutiontime = "maxexecutiontime=300";
-							String finalexecutiontime = "finalexecutiontime=300";
-							try {
-								runProcess(java_exe
-										+ " onetime -db orientDB.TestDSClientA" 
-										+ " -P " + workload_file 
-										+ " -p " + insertImage 
-										+ " -p " + usercount 
-										+ " -p warmup=100000 -p warmupthreads=100" 
-										+ " -p " + threads
-										+ " -p " + maxexecutiontime 
-										+ " -p " + finalexecutiontime);
-							} catch (Exception e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-							System.out.println("Workload Done");
-							System.out.println("");
-							System.out.println("********************************************************************************************************");
-							System.out.println("");
-							System.out.println("NEW EXPERIMENT");
+						// Populate DB
+						edu.usc.bg.BGMainClass.main(new String[]{"onetime", "-load", "-db", "orientDB.TestDSClientA",
+																"-P", populateDB, 
+																"-p", insertImage,
+																"-p","threadcount=1"});
+						
+						System.out.println("WORKLOAD EXECUTION: ");
+						System.out.println(workload);
+						String workload_file = "workloads/" + workload;						
+						String usercount =  "usercount=" + Integer.toString( (Integer.parseInt(socialitee.replace("K", "")) * 1000));
+						String threads = "threadcount=" + Integer.toString(threadnum);
+						String maxexecutiontime = "maxexecutiontime=300";
+						String finalexecutiontime = "finalexecutiontime=300";
+						try {
+							runProcess(java_exe
+									+ " onetime -db orientDB.TestDSClientA" 
+									+ " -P " + workload_file 
+									+ " -p " + insertImage 
+									+ " -p " + usercount 
+									+ " -p warmup=100000 -p warmupthreads=100" 
+									+ " -p " + threads
+									+ " -p " + maxexecutiontime 
+									+ " -p " + finalexecutiontime);
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						System.out.println("Workload Done");
+						System.out.println("");
+						System.out.println("********************************************************************************************************");
+						System.out.println("");
+						System.out.println("NEW EXPERIMENT");
 
 					}
 				}									
