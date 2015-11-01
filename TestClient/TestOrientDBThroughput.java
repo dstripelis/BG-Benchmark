@@ -69,8 +69,8 @@ public class TestOrientDBThroughput {
 						String workload_file = "workloads/" + workload;						
 						String usercount =  "usercount=" + Integer.toString( (Integer.parseInt(socialitee.replace("K", "")) * 1000));
 						String threads = "threadcount=" + Integer.toString(threadnum);
-						String maxexecutiontime = "maxexecutiontime=300";
-						String finalexecutiontime = "finalexecutiontime=300";
+						String maxexecutiontime = "maxexecutiontime=180";
+						String finalexecutiontime = "finalexecutiontime=180";
 						try {
 							runProcess(java_exe
 									+ " onetime -db orientDB.TestDSClientA" 
