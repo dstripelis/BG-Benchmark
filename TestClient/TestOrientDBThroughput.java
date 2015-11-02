@@ -51,13 +51,15 @@ public class TestOrientDBThroughput {
 		System.out.println("");
 		for (String socialitee : socialites){			
 			String populateDB = "workloads/populateDB" + socialitee;
-			for (Boolean image : images){								
-				System.out.println("DELETE RECORDS");
-				orientDB.TestDSClientA.DeleteRecords();				
+			for (Boolean image : images){											
 				String insertImage = "insertimage=" + image.toString();				
 				for (Integer threadnum : threadcount){					
 					for (String workload : workloads){		
 
+						// Delete Records
+						System.out.println("DELETE RECORDS");
+						orientDB.TestDSClientA.DeleteRecords();	
+						
 						// Populate DB
 						edu.usc.bg.BGMainClass.main(new String[]{"onetime", "-load", "-db", "orientDB.TestDSClientA",
 																"-P", populateDB, 
