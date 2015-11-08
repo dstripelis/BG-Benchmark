@@ -1,3 +1,5 @@
+package spark.bg.validation;
+
 /******************************************************************************
  *  Compilation:  javac IntervalST.java
  *  Execution:    java IntervalST
@@ -10,11 +12,12 @@
  *
  ******************************************************************************/
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.LinkedList;
 
 
-public class IntervalTreeCustom<Value>  {
+public class IntervalTreeCustom<Value> implements Serializable {
 
     private Node root;   // root of the BST
 
@@ -24,7 +27,7 @@ public class IntervalTreeCustom<Value>  {
         Value value;              // associated data
         Node left, right;         // left and right subtrees
         int N;                    // size of subtree rooted at this node
-        int max;                  // max endpoint in subtree rooted at this node
+        long max;                  // max endpoint in subtree rooted at this node
 
         Node(Interval1D interval, Value value) {
             this.interval = interval;
@@ -240,13 +243,13 @@ public class IntervalTreeCustom<Value>  {
         x.max = max3(x.interval.high, max(x.left), max(x.right));
     }
 
-    private int max(Node x) {
+    private long max(Node x) {
         if (x == null) return Integer.MIN_VALUE;
         return x.max;
     }
 
     // precondition: a is not null
-    private int max3(int a, int b, int c) {
+    private long max3(long a, long b, long c) {
         return Math.max(a, Math.max(b, c));
     }
 
@@ -289,60 +292,6 @@ public class IntervalTreeCustom<Value>  {
     private boolean checkMax(Node x) {
         if (x == null) return true;
         return x.max ==  max3(x.interval.high, max(x.left), max(x.right));
-    }
-
-
-    /***************************************************************************
-     *  test client
-     ***************************************************************************/
-    public static void main(String[] args) {
-        //int N = Integer.parseInt(args[0]);
-        int N = 8;
-
-        // generate N random intervals and insert into data structure
-        IntervalTreeCustom<String> st = new IntervalTreeCustom<String>();
-        for (int i = 0; i < N; i++) {
-            int low  = (int) (Math.random() * 1000);
-            int high = (int) (Math.random() * 50) + low;
-            Interval1D interval = new Interval1D(low, high);
-            st.put(interval, "" + i);
-            System.out.println((interval) + " Value:" + i);
-        }
-
-
-        // print out tree statistics
-        System.out.println("height:          " + st.height());
-        System.out.println("size:            " + st.size());
-        System.out.println("integrity check: " + st.check());
-        System.out.println();
-
-
-        System.out.println(st.toString());
-
-
-        // generate random intervals and check for overlap
-        for (int i = 0; i < N; i++) {
-            int low  = (int) (Math.random() * 100);
-            int high = (int) (Math.random() * 10) + low;
-            Interval1D interval = new Interval1D(low, high);
-            System.out.println(interval + ":  " + st.search(interval));
-            System.out.println((interval + ":  "));
-            for (Interval1D x : st.searchAll(interval))
-                System.out.println(((x + " ")));
-            System.out.println();
-            System.out.println();
-        }
-
-        System.out.println("INTERVALS:: ");
-        System.out.println(st.searchAll(new Interval1D(550,900)));
-        System.out.println();
-        System.out.println();
-        System.out.println("Values ::");
-        for (String s: st.findDataRange(new Interval1D(550, 900))){
-            System.out.println(s);
-        }
-
-
     }
 
 }
