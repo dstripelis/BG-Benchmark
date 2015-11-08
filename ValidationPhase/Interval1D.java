@@ -1,3 +1,7 @@
+package spark.bg.validation;
+
+import java.io.Serializable;
+
 /******************************************************************************
  *  Compilation:  javac Interval1D.java
  *  Execution:    java Interval1D
@@ -7,12 +11,12 @@
  ******************************************************************************/
 
 
-public class Interval1D implements Comparable<Interval1D> {
-    public final int low;   // left endpoint
-    public final int high;  // right endpoint
+public class Interval1D implements Comparable<Interval1D>, Serializable {
+    public final long low;   // left endpoint
+    public final long high;  // right endpoint
 
     // precondition: left <= right
-    public Interval1D(int left, int right) {
+    public Interval1D(long left, long right) {
         if (left <= right) {
             this.low  = left;
             this.high = right;
@@ -28,7 +32,7 @@ public class Interval1D implements Comparable<Interval1D> {
     }
 
     // does this interval a intersect b?
-    public boolean contains(int x) {
+    public boolean contains(long x) {
         return (low <= x) && (x <= high);
     }
 
@@ -43,7 +47,7 @@ public class Interval1D implements Comparable<Interval1D> {
     public String toString() {
         return "[" + low + ", " + high + "]";
     }
-    
+
 
 }
 
