@@ -13,16 +13,18 @@ package spark.bg.validation;
  ******************************************************************************/
 
 import java.io.Serializable;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 
 public class IntervalTreeCustom<Value> implements Serializable {
 
     private Node root;   // root of the BST
+    private Interval1D lowestInterval = null;
+    private Interval1D highestInterval = null;
 
     // BST helper node data type
-    private class Node {
+    private class Node implements Serializable{
         Interval1D interval;      // key
         Value value;              // associated data
         Node left, right;         // left and right subtrees
@@ -64,7 +66,21 @@ public class IntervalTreeCustom<Value> implements Serializable {
      *  randomized insertion
      ***************************************************************************/
 
+    // Customize put function to assign lowest and highest intervals
     public void put(Interval1D interval, Value value) {
+
+        if (this.lowestInterval==null && this.highestInterval==null){
+            this.lowestInterval = interval;
+            this.highestInterval= interval;
+        }else{
+            if (interval.low <= this.lowestInterval.low && interval.high<this.lowestInterval.high){
+                this.lowestInterval = interval;
+            }
+            if ( (interval.high > this.highestInterval.high) || (interval.high == this.highestInterval.high && interval.low>this.highestInterval.low)) {
+                this.highestInterval = interval;
+            }
+        }
+
         if (contains(interval)) {
             System.out.println(("duplicate"));
             remove(interval);
@@ -183,33 +199,32 @@ public class IntervalTreeCustom<Value> implements Serializable {
 
 
     /***************************************************************************
-     *  Intervals Values searching (based on Interval Searching)
+     *  Custom Intervals Values searching (based on Interval Searching)
      ***************************************************************************/
 
-    // return *all* intervals in data structure that intersect the given interval
+    // return the values of *all* intervals in data structure that intersect the given interval
     // running time is proportional to R log N, where R is the number of intersections
-    public HashSet<Value> findDataRange(Interval1D interval) {
-        HashSet<Value> hset = new HashSet<Value>();
-        findDataRange(root, interval, hset);
-        return hset;
+    public ArrayList<Value> findDataRange(Interval1D interval) {
+        ArrayList<Value> list = new ArrayList<Value>();
+        findDataRange(root, interval, list);
+        return list;
     }
 
-
     // look in subtree rooted at x
-    public boolean findDataRange(Node x, Interval1D interval, HashSet<Value> hset) {
+    public boolean findDataRange(Node x, Interval1D interval, ArrayList<Value> list) {
         boolean found1 = false;
         boolean found2 = false;
         boolean found3 = false;
         if (x == null)
             return false;
         if (interval.intersects(x.interval)) {
-            hset.add(x.value);
+            list.add(x.value);
             found1 = true;
         }
         if (x.left != null && x.left.max >= interval.low)
-            found2 = findDataRange(x.left, interval, hset);
+            found2 = findDataRange(x.left, interval, list);
         if (found2 || x.left == null || x.left.max < interval.low)
-            found3 = findDataRange(x.right, interval, hset);
+            found3 = findDataRange(x.right, interval, list);
         return found1 || found2 || found3;
     }
 
@@ -236,7 +251,7 @@ public class IntervalTreeCustom<Value> implements Serializable {
      *  helper BST functions
      ***************************************************************************/
 
-    // fix auxilliar information (subtree count and max fields)
+    // fix auxiliary information (subtree count and max fields)
     private void fix(Node x) {
         if (x == null) return;
         x.N = 1 + size(x.left) + size(x.right);
@@ -292,6 +307,17 @@ public class IntervalTreeCustom<Value> implements Serializable {
     private boolean checkMax(Node x) {
         if (x == null) return true;
         return x.max ==  max3(x.interval.high, max(x.left), max(x.right));
+    }
+
+    /***************************************************************************
+     *  Lowest and highest intervals get functions
+     ***************************************************************************/
+    public Interval1D getLowestInterval(){
+        return this.lowestInterval;
+    }
+
+    public Interval1D getHighestInterval(){
+        return this.highestInterval;
     }
 
 }
