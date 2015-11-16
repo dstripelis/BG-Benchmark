@@ -1,9 +1,11 @@
 import sys, io, os
 from pyspark import SparkConf, SparkContext
 from intervaltree import Interval, IntervalTree
+from operator import add
 
 APP_NAME = "Log File Handler"
 
+i = 0
 def extendList(a, b):
 	c = []
 	c.extend(a)
@@ -20,6 +22,7 @@ def isPrimaryKeyTypeResource(keyType):
 		return True
 	return False
 
+
 def prepareLogDictionaryFromLogLine(logLine):
 	logLine = logLine.strip()
 	logDetails = logLine.split(',')
@@ -27,11 +30,11 @@ def prepareLogDictionaryFromLogLine(logLine):
 	logRecord['logType'] = logDetails[0]
 	logRecord['bgAction'] = logDetails[1]
 	logRecord['seqID'] = logDetails[2]
-	logRecord['threadID'] = logDetails[3]
-	logRecord['primaryKey'] = logDetails[4]
-	logRecord['startTimeNS'] = logDetails[5]
-	logRecord['endTimeNS'] = logDetails[6]
-	logRecord['resultSize'] = logDetails[7]
+	logRecord['threadID'] = int(logDetails[3])
+	logRecord['primaryKey'] = int(logDetails[4])
+	logRecord['startTimeNS'] = long(logDetails[5])
+	logRecord['endTimeNS'] = long(logDetails[6])
+	logRecord['resultSize'] = int(logDetails[7])
 	if len(logDetails) == 9:
 		logRecord['insertOrDelete'] = 'N'
 		logRecord['actionType'] = logDetails[8]
@@ -44,27 +47,142 @@ def prepareLogDictionaryFromLogLine(logLine):
 		logRecord['primaryKeyType'] = 'userID'
 	return ((logRecord['primaryKey'], logRecord['primaryKeyType']), [logRecord])
 
-def createIntervalDict(logs):
+
+def createIntervalDict(logs, bgAction):
 	intervalDict = {}
-	for logRecord in logs:
-		startTimeNS = logRecord['startTimeNS']
-		endTimeNS = logRecord['endTimeNS']
+	for log in logs:
+		if bgAction not in log['bgAction']:
+			continue
+		startTimeNS = log['startTimeNS']
+		endTimeNS = log['endTimeNS']
 		if (startTimeNS, endTimeNS) not in intervalDict:
 			intervalDict[(startTimeNS, endTimeNS)] = []
-		intervalDict[(startTimeNS, endTimeNS)].append(logRecord)
+		intervalDict[(startTimeNS, endTimeNS)].append(log)
 	return intervalDict
 
-def populateIntervalTree(logs):
+def populateIntervalTree(logs, bgAction, databaseStartState):
 	logIntervalTree = IntervalTree()
-	intervalDict = createIntervalDict(logs)
+	currentValues = [databaseStartState]
+	if logs is None:
+		return logIntervalTree
+	intervalDict = createIntervalDict(logs, bgAction)
 	for interval in intervalDict:
-		logRecords = intervalDict[interval]
 		startTimeNS = interval[0]
 		endTimeNS = interval[1]
-		logIntervalTree[startTimeNS:endTimeNS] = logRecords
-	return logIntervalTree
+		logIntervalTree[startTimeNS:endTimeNS] = intervalDict[interval]
+	sortedIntervals = sorted(logIntervalTree)
+	logIntervalTreeWithValues = IntervalTree()
+	for i in sortedIntervals:
+		logsWithValues = []
+		currentValuesNext = []
+		for log in i.data:
+			data = log
+			values = []
+			for currentValue in currentValues:
+				modificationValue = data['resultSize']
+				if currentValue + modificationValue not in currentValuesNext:
+					if currentValue + modificationValue < 0:
+						currentValuesNext.append(0)
+					else:
+						currentValuesNext.append(currentValue + modificationValue)
+				if currentValue + modificationValue not in values:
+					if currentValue + modificationValue < 0:
+						values.append(0)
+					else:
+						values.append(currentValue + modificationValue)
+			data['value'] = values
+			logsWithValues.append(data)
+		currentValues = currentValuesNext
+		logIntervalTreeWithValues[i.begin:i.end] = logsWithValues
+	return logIntervalTreeWithValues
+
+def populateIntervalTreesForAllBGActions(logs, bgActions={'ACCEPTFRND' : 10, 'PENDFRND' : 0}):
+	intervalTrees = {}
+	for bgAction in bgActions:
+		intervalTrees[bgAction] = populateIntervalTree(logs, bgAction, bgActions[bgAction])
+	return intervalTrees
+
+def findOverlappingIntervals(readQuery, intervalTrees):
+	intervalTree = intervalTrees[readQuery['bgAction']]
+	readStartTime = readQuery['startTimeNS']
+	readEndTime = readQuery['endTimeNS']
+	bgAction = readQuery['bgAction']
+	overlappingIntervals = intervalTree[readStartTime:readEndTime]
+	return overlappingIntervals
+
+
+#get interval tree from 0 to start(readQuery) - 1 and sort in reverse order
+#iterate till you find log record with accepted friend as the bg action and set that as the initialState
+#if none found, set 10 as the initial state
+def findInitialStateForReadQuery(readQuery, intervalTrees, bgActions={'ACCEPTFRND' : 10, 'PENDFRND' : 0}):
+	bgAction = readQuery['bgAction']
+	intervalTree = intervalTrees[bgAction]
+	readQueryStart = readQuery['startTimeNS']
+	intervals = intervalTree[1L:readQueryStart - 1L]
+	endTimes = {}
+	for interval in intervals:
+		endTime = interval.end
+		logs = interval.data
+		if endTime >= readQueryStart:
+			continue
+		if endTime not in endTimes:
+			endTimes[endTime] = []
+		endTimes[endTime].append(interval)
+	if len(endTimes) == 0:
+		initialState = [bgActions[bgAction]]
+		return initialState
+	lastIntervals = [value for (key, value) in sorted(endTimes.items(), reverse=True)][0]
+	if len(lastIntervals) == 0:
+		initialState = [bgActions[bgAction]]
+		return initialState
+	initialState = []
+	for interval in lastIntervals:
+		for log in interval.data:
+			initialState.extend(log['value'])
+		overlappingIntervals = intervalTree[interval.begin:interval.end]
+		for overlappingInterval in overlappingIntervals:
+			if interval != overlappingInterval:
+				for log in overlappingInterval.data:
+					initialState.extend(log['value'])
+	return initialState
+
+def getReadLogsForValidation(readLogs):
+	validReadLogs = []
+	for readLog in readLogs:
+		if "ACCEPTFRND" in readLog['bgAction'] or "PENDFRND" in readLog['bgAction']:
+			validReadLogs.append(readLog)
+	return validReadLogs
+
+def getRangeOfPossibleValues(queryObject):
+	initialState = queryObject["initialState"]
+	readLog = queryObject["readLog"]
+	intervalTree = queryObject["intervalTrees"][readLog['bgAction']]
+	overlappingUpdateIntervals = queryObject["overlappingUpdateIntervals"]
+	possibleValueRange = []
+	possibleValueRange.extend(initialState)
+	for overlappingInterval in overlappingUpdateIntervals:
+		for log in overlappingInterval.data:
+			possibleValueRange.extend(log['value'])
+	return {"valueRead" : readLog["resultSize"], "possibleValueRange" : possibleValueRange}
+
+def getValidityOfReadLog(possibleValueRangeObject):
+	if possibleValueRangeObject['valueRead'] in possibleValueRangeObject['possibleValueRange']:
+		possibleValueRangeObject['validity'] = True
+	else:
+		print (str(possibleValueRangeObject) + "  ----------> FALSE")
+		possibleValueRangeObject['validity'] = False
+	return possibleValueRangeObject
+
+def getValidRecords(allRecords):
+	validRecords = []
+	for record in allRecords:
+		if record["validity"] == True:
+			validRecords.append(record)
+	return validRecords
+
 
 class LogFileHandler:
+
 
 	def initSpark(self):
 		conf = SparkConf().setAppName(APP_NAME)
@@ -80,9 +198,10 @@ class LogFileHandler:
 		self.initSpark()
 
 	def readLogFiles(self):
-		print("Generating Log files RDD")
+		print("Generating Log files RDD for individual log files")
 		completeRDD = None
-		tmpRDDs = []
+		readTmpRDDs = []
+		updateTmpRDDs = []
 		files = os.listdir(self.logFileDir)
 		for fileName in files:
 			if 'read' not in fileName and 'update' not in fileName:
@@ -90,25 +209,58 @@ class LogFileHandler:
 			inputFilePath = self.logFileDir + "/" + fileName
 			textRDD = self.sc.textFile(inputFilePath)
 			tmpRDD = textRDD.map(lambda x: prepareLogDictionaryFromLogLine(x))
-			tmpRDDs.append(tmpRDD)
-			print fileName
+			if 'read' in fileName:
+				readTmpRDDs.append(tmpRDD)
+			elif 'update' in fileName:
+				updateTmpRDDs.append(tmpRDD)
 		print("Combining individual RDDs to form a single RDD")
-		completeRDD = self.sc.union(tmpRDDs)
+		readCompleteRDD = self.sc.union(readTmpRDDs)
+		updateCompleteRDD = self.sc.union(updateTmpRDDs)
 		print("Splitting RDD by data item (primary key)")
-		completeRDD = completeRDD.reduceByKey(extendList)
-		print("Total data points in the logs: " + str(len(completeRDD.collect())))
+		readCompleteRDD = readCompleteRDD.reduceByKey(extendList)
+		updateCompleteRDD = updateCompleteRDD.reduceByKey(extendList)
+		completeRDD = readCompleteRDD.leftOuterJoin(updateCompleteRDD)
 		return completeRDD
 
 	def createLogIntervalTree(self):
 		logsRDD = self.readLogFiles()
 		print("Generating interval tree from splitted logs RDD")
-		intervalTreeByDataItemRDD = logsRDD.map(lambda x: (x[0], populateIntervalTree(x[1])))
-		dataset =  intervalTreeByDataItemRDD.take(1)
+		intervalTreeByDataItemRDD = logsRDD.map(lambda x: (x[0],{"intervalTrees" : populateIntervalTreesForAllBGActions(x[1][1]), "readLogs" : x[1][0]}))
 		return intervalTreeByDataItemRDD
 
+	def findOverlappingUpdateLogsAndInitialStateOfEveryReadLog(self):
+		intervalTreeRDD = self.createLogIntervalTree()
+		print("Finding overlapping update logs for each read log for every data item")#find database initial state corresponding to each read query
+		validReadLogsRDD = intervalTreeRDD.map(lambda x : (x[0], {"intervalTrees" : x[1]["intervalTrees"] ,"readLogs" : getReadLogsForValidation(x[1]["readLogs"])}))
+		overlappingUpdateLogsWithInitialStateRDD = intervalTreeRDD.map(lambda x : (x[0], [{"intervalTrees" : x[1]["intervalTrees"] ,"readLog" : readQuery, "overlappingUpdateIntervals" : findOverlappingIntervals(readQuery, x[1]["intervalTrees"]), "initialState" : findInitialStateForReadQuery(readQuery, x[1]["intervalTrees"])} for readQuery in x[1]["readLogs"]]))
+		return overlappingUpdateLogsWithInitialStateRDD
+
+	def findPossibleValueRangeForReadLogs(self):
+		queryRDD = self.findOverlappingUpdateLogsAndInitialStateOfEveryReadLog()
+		print("Finding possible range of valid values for each read log based on interval tree for every data item")
+		possibleValueRangeRDD = queryRDD.map(lambda x : (x[0], [getRangeOfPossibleValues(queryObject) for queryObject in x[1]]))
+		return possibleValueRangeRDD
+
+	def validateReadLogs(self):
+		possibleValueRangeRDD = self.findPossibleValueRangeForReadLogs()
+		print("Validating each read log for every data item")
+		validationRDD = possibleValueRangeRDD.map(lambda x : (x[0], [getValidityOfReadLog(possibleValueRangeObject) for possibleValueRangeObject in x[1]]))
+		return validationRDD
+
+	def getOverallValidData(self):
+		validationRDD = self.validateReadLogs()
+		print("Calculating percentage of valid data...")
+		totalValidCount = validationRDD.map(lambda x : ("count of valid read logs", len(getValidRecords(x[1])))).reduceByKey(add).collect()
+		print totalValidCount
+		totalReadCount = validationRDD.map(lambda x : ("count of total read logs", len(x[1]))).reduceByKey(add).collect()
+		print totalReadCount
+		
+		validationPercentage = float(totalValidCount[0][1])/float(totalReadCount[0][1]) * 100.0
+		print("Total percentage of valid data = " + str(validationPercentage))
+
 def main():
-	logFileHandler = LogFileHandler('LogRecords')
-	logFileHandler.createLogIntervalTree()
+	logFileHandler = LogFileHandler('logs')
+	logFileHandler.getOverallValidData()
 
 if __name__ == '__main__':
 	main()
