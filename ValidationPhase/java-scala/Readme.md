@@ -1,6 +1,6 @@
 ###There are five cases to consider when evaluation a read operation for each partition:
 
-1.	 There are no updates for the specific partition </strong> <br>
+1.	<strong> There are no updates for the specific partition </strong> <br>
 Evaluate: Against the initial state <br>
 
 2.	<strong> The Read operation occurs before of all the updates </strong> <br> 
