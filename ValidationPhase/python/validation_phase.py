@@ -5,7 +5,6 @@ from operator import add
 
 APP_NAME = "Log File Handler"
 
-i = 0
 def extendList(a, b):
 	c = []
 	c.extend(a)
@@ -60,6 +59,7 @@ def createIntervalDict(logs, bgAction):
 		intervalDict[(startTimeNS, endTimeNS)].append(log)
 	return intervalDict
 
+
 def populateIntervalTree(logs, bgAction, databaseStartState):
 	logIntervalTree = IntervalTree()
 	currentValues = [databaseStartState]
@@ -80,16 +80,20 @@ def populateIntervalTree(logs, bgAction, databaseStartState):
 			values = []
 			for currentValue in currentValues:
 				modificationValue = data['resultSize']
-				if currentValue + modificationValue not in currentValuesNext:
-					if currentValue + modificationValue < 0:
+				if data['insertOrDelete'] == 'I':
+					tmp = currentValue + 1
+				else:
+					tmp = currentValue - 1
+				if tmp not in currentValuesNext:
+					if tmp < 0:
 						currentValuesNext.append(0)
 					else:
-						currentValuesNext.append(currentValue + modificationValue)
-				if currentValue + modificationValue not in values:
-					if currentValue + modificationValue < 0:
+						currentValuesNext.append(tmp)
+				if tmp not in values:
+					if tmp < 0:
 						values.append(0)
 					else:
-						values.append(currentValue + modificationValue)
+						values.append(tmp)
 			data['value'] = values
 			logsWithValues.append(data)
 		currentValues = currentValuesNext
@@ -131,10 +135,11 @@ def findInitialStateForReadQuery(readQuery, intervalTrees, bgActions={'ACCEPTFRN
 	if len(endTimes) == 0:
 		initialState = [bgActions[bgAction]]
 		return initialState
-	lastIntervals = [value for (key, value) in sorted(endTimes.items(), reverse=True)][0]
-	if len(lastIntervals) == 0:
-		initialState = [bgActions[bgAction]]
-		return initialState
+	kvPair = [(key,value) for (key, value) in sorted(endTimes.items(), reverse=True)][0]
+	lastIntervals = kvPair[1]
+	#if len(lastIntervals) == 0:
+	#	initialState = [bgActions[bgAction]]
+	#	return initialState
 	initialState = []
 	for interval in lastIntervals:
 		for log in interval.data:
@@ -169,7 +174,7 @@ def getValidityOfReadLog(possibleValueRangeObject):
 	if possibleValueRangeObject['valueRead'] in possibleValueRangeObject['possibleValueRange']:
 		possibleValueRangeObject['validity'] = True
 	else:
-		print (str(possibleValueRangeObject) + "  ----------> FALSE")
+		#print (str(possibleValueRangeObject) + "  ----------> FALSE")
 		possibleValueRangeObject['validity'] = False
 	return possibleValueRangeObject
 
@@ -187,7 +192,6 @@ class LogFileHandler:
 	def initSpark(self):
 		conf = SparkConf().setAppName(APP_NAME)
 		conf = conf.setMaster("local[*]")
-		conf = conf.set("spark.executor.memory", "2g")
 		self.sc = SparkContext(conf=conf)
 		logger = self.sc._jvm.org.apache.log4j
 		logger.LogManager.getLogger("org").setLevel( logger.Level.OFF )
@@ -254,12 +258,12 @@ class LogFileHandler:
 		print totalValidCount
 		totalReadCount = validationRDD.map(lambda x : ("count of total read logs", len(x[1]))).reduceByKey(add).collect()
 		print totalReadCount
-		
+
 		validationPercentage = float(totalValidCount[0][1])/float(totalReadCount[0][1]) * 100.0
 		print("Total percentage of valid data = " + str(validationPercentage))
 
 def main():
-	logFileHandler = LogFileHandler('logs')
+	logFileHandler = LogFileHandler('logs2')
 	logFileHandler.getOverallValidData()
 
 if __name__ == '__main__':
